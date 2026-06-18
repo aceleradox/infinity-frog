@@ -1,0 +1,1770 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinity Frog - Story Mode</title>
+    <!-- Tailwind CSS para estilização rápida do painel e botões virtuais -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fonte Retro estilo Arcade do Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #090a10;
+            color: #fff;
+            font-family: 'Press Start 2P', monospace;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        /* Renderização pixelada perfeita para estilo retro NES 8-bits */
+        canvas {
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.35);
+            border: 6px solid #2d3748;
+            border-radius: 12px;
+            background-color: #000;
+        }
+        /* Efeito de linhas CRT clássicas do Arcade */
+        .crt::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+            pointer-events: none;
+            z-index: 10;
+            border-radius: 12px;
+            background-size: 100% 4px, 6px 100%;
+        }
+        /* Teclas e botões retro estilo controle de console/fliperama */
+        .nes-btn {
+            background: #e53e3e;
+            border-bottom: 4px solid #9b2c2c;
+            border-right: 4px solid #9b2c2c;
+            border-top: 2px solid #feb2b2;
+            border-left: 2px solid #feb2b2;
+            color: #fff;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            width: 55px;
+            height: 55px;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+        }
+        .nes-btn:active {
+            transform: translateY(2px);
+            border-bottom-width: 1px;
+            border-right-width: 1px;
+        }
+        .dpad-btn {
+            background: #2d3748;
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            font-size: 18px;
+        }
+        .dpad-btn:active {
+            background: #4a5568;
+        }
+        input::placeholder {
+            color: #4a5568;
+        }
+    </style>
+</head>
+<body class="flex flex-col justify-between items-center w-screen h-screen p-2 sm:p-4 select-none overflow-hidden">
+
+    <header class="w-full max-w-7xl flex flex-wrap justify-between items-center bg-gray-900/80 border-2 border-gray-700 px-4 py-2 rounded-xl mb-2 gap-2 text-center">
+        <div class="flex items-center gap-4">
+            <h1 class="text-[11px] sm:text-[14px] font-extrabold text-green-400 tracking-wider animate-pulse">INFINITY FROG</h1>
+            <span class="text-[8px] text-gray-500 hidden md:inline">MODO HISTÓRIA SOLO CAMPANHA</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 sm:gap-6">
+            <div class="text-[9px] sm:text-[11px]">
+                <span class="text-gray-400">FASE: </span>
+                <span id="faseText" class="text-cyan-400 font-bold">1/7</span>
+            </div>
+            <div class="text-[9px] sm:text-[11px]">
+                <span class="text-gray-400">BIOMA: </span>
+                <span id="biomaText" class="text-green-400 font-bold">FLORESTA CLÁSSICA</span>
+            </div>
+            <div class="text-[9px] sm:text-[11px]">
+                <span class="text-gray-400">DISTÂNCIA: </span>
+                <span id="scoreVal" class="text-yellow-300 font-bold">0m</span>
+            </div>
+            <div class="text-[9px] sm:text-[11px]">
+                <span class="text-gray-400">META: </span>
+                <span id="metaVal" class="text-pink-400 font-bold">80m</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative w-full max-w-7xl flex-1 flex flex-col lg:flex-row gap-4 items-center justify-center overflow-hidden">
+        
+        <!-- Painel Lateral Esquerdo: Checklist de Fases -->
+        <div class="hidden lg:flex flex-col bg-gray-900/90 border-4 border-gray-700 p-4 rounded-xl w-64 h-full justify-between">
+            <div>
+                <h3 class="text-yellow-400 font-bold border-b-2 border-gray-800 pb-2 text-center text-[10px] mb-3">SUA CAMPANHA</h3>
+                <ul id="checklistFases" class="space-y-3 text-[8px] text-gray-300">
+                    <!-- Gerado Dinamicamente -->
+                </ul>
+            </div>
+            
+            <div class="space-y-3 border-t-2 border-gray-800 pt-3">
+                <div class="text-[8px] text-cyan-400 font-bold text-center mb-1">HERÓI ATIVO</div>
+                <div id="activeHeroLabel" class="text-[9px] text-center text-white font-bold bg-black/50 py-1.5 rounded uppercase tracking-widest">FROGGER</div>
+                
+                <div class="flex justify-between items-center text-[8px] mt-2">
+                    <span>Música Synth:</span>
+                    <button id="musicToggleBtn" class="px-2 py-1 bg-red-950 border border-red-800 text-red-200 rounded hover:bg-red-900 transition-colors">MUTADO</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área Central da Tela do Jogo (Canvas + Menus de Alertas) -->
+        <div class="relative flex-1 flex items-center justify-center w-full h-full max-h-[480px]">
+            <div class="crt relative w-full h-full flex items-center justify-center">
+                <canvas id="gameCanvas" width="800" height="480" class="max-w-full max-h-full object-contain"></canvas>
+            </div>
+
+            <!-- Tela de Início / Lobby de Save -->
+            <div id="startScreen" class="absolute inset-0 bg-black/95 border-6 border-gray-700 rounded-xl flex flex-col items-center justify-center p-6 text-center z-30 overflow-y-auto">
+                <h2 class="text-green-400 text-2xl sm:text-3xl font-extrabold tracking-widest mb-1 animate-bounce">INFINITY</h2>
+                <h2 class="text-yellow-400 text-3xl sm:text-4xl font-extrabold tracking-wider mb-4">FROG</h2>
+                
+                <div class="w-full max-w-2xl bg-gray-900/95 border-2 border-gray-700 p-4 rounded-xl space-y-4">
+                    <!-- Configuração do Jogador -->
+                    <div>
+                        <label class="block text-[8px] sm:text-[9px] text-gray-400 mb-2">INICIAIS DE SALVAMENTO:</label>
+                        <input type="text" id="playerNameInput" maxlength="6" value="HEROI" class="w-full max-w-sm bg-black border-2 border-gray-700 rounded p-2 text-center text-[10px] sm:text-[12px] text-yellow-300 uppercase focus:outline-none focus:border-green-400 tracking-widest font-bold mx-auto block">
+                    </div>
+
+                    <!-- Informação de História -->
+                    <div class="border-t border-gray-800 pt-3 text-left max-w-md mx-auto space-y-2 text-[8px] leading-relaxed text-gray-400">
+                        <span class="text-cyan-400 block text-center font-bold">A JORNADA DO SAPINHO</span>
+                        O Templo Sagrado dourado foi tomado por forças poluidoras do asfalto! Supere os 7 biomas elementais, use seu super salto, asas de planar e sua língua retrátil para alcançar o Portal de Luz no topo de cada mundo e salvar o Brejo Celestial!
+                    </div>
+
+                    <!-- Divisor de Fases do Save -->
+                    <div id="saveStatePanel" class="border-t border-gray-800 pt-2 text-center">
+                        <span id="saveStatusText" class="block text-[8px] text-yellow-400 font-bold mb-3">Aguardando...</span>
+                        
+                        <div class="flex gap-4 justify-center">
+                            <button id="btnContinue" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-[8px] border-b-4 border-blue-800 active:border-b-0 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                                CONTINUAR JORNADA 💾
+                            </button>
+                            <button id="btnNewGame" class="px-4 py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded text-[8px] border-b-4 border-green-800 active:border-b-0 transition-all">
+                                NOVO JOGO 🎮
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="customAlert" class="absolute inset-0 bg-black/90 border-6 border-gray-700 rounded-xl flex flex-col items-center justify-center p-6 text-center hidden z-20">
+                <h2 class="text-2xl sm:text-3xl text-red-500 font-bold mb-4">GAME OVER!</h2>
+                <p id="alertDesc" class="text-[10px] sm:text-xs text-gray-300 mb-6 leading-relaxed max-w-md"></p>
+                <button id="btnRestartGame" class="px-8 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg font-bold text-xs sm:text-sm tracking-wider border-b-4 border-yellow-700 active:border-b-0 transition-all">
+                    TENTAR DE NOVO 🔄
+                </button>
+            </div>
+
+            <div id="victoryAlert" class="absolute inset-0 bg-black/95 border-6 border-cyan-700 rounded-xl flex flex-col items-center justify-center p-6 text-center hidden z-20">
+                <h2 class="text-2xl sm:text-3xl text-green-400 font-bold mb-2 animate-bounce">PORTAL ATRAVESSADO!</h2>
+                <p class="text-[8px] text-cyan-300 font-bold mb-4">MUNDO CONCLUÍDO COM SUCESSO</p>
+                <p id="victoryDesc" class="text-[9px] text-gray-300 mb-6 leading-relaxed max-w-md"></p>
+                <button id="btnNextStage" class="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs sm:text-sm tracking-wider border-b-4 border-green-800 active:border-b-0 transition-all">
+                    SEGUINTE BIOMA 👉
+                </button>
+            </div>
+
+            <div id="congratsAlert" class="absolute inset-0 bg-black/95 border-6 border-yellow-500 rounded-xl flex flex-col items-center justify-center p-6 text-center hidden z-20">
+                <h2 class="text-2xl sm:text-3xl text-yellow-400 font-bold mb-2 animate-pulse">👑 CAMPEÃO DO BREJO!</h2>
+                <p class="text-[8px] text-green-400 font-bold mb-4">VOCÊ VENCEU O MUNDO DO INFINITY FROG!</p>
+                <p class="text-[8px] text-gray-300 mb-6 max-w-md leading-relaxed">
+                    Sua determinação divina permitiu que você alcançasse o altar supremo no topo do Templo Sagrado. As nuvens poluidoras foram dispersadas e a lagoa agora está em total harmonia e paz!
+                </p>
+                <button id="btnBackToMenu" class="px-8 py-4 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg font-bold text-xs sm:text-sm tracking-wider border-b-4 border-yellow-700 active:border-b-0 transition-all">
+                    MENU PRINCIPAL 🏠
+                </button>
+            </div>
+        </div>
+
+        <!-- Painel Lateral Direito (Controles, Instruções & Adventure Log) -->
+        <div class="hidden lg:flex flex-col bg-gray-900/90 border-4 border-gray-700 p-4 rounded-xl w-64 h-full justify-between gap-3">
+            <div>
+                <h3 class="text-yellow-400 font-bold border-b-2 border-gray-800 pb-1 text-center text-[9px] mb-2">COMO JOGAR</h3>
+                <ul class="space-y-1 text-[7px] text-gray-300 leading-relaxed">
+                    <li>⌨️ <b class="text-white">SETAS / WASD</b>: Move sapo</li>
+                    <li>⌨️ <b class="text-white">Z</b>: Língua (Comer mosca)</li>
+                    <li>⌨️ <b class="text-white">X / ESPAÇO</b>: Pulo Alto / Planar</li>
+                </ul>
+            </div>
+            
+            <!-- Adventure Log -->
+            <div class="flex-1 flex flex-col justify-between border-t-2 border-gray-800 pt-2 min-h-[190px]">
+                <div class="text-[8px] text-cyan-400 font-bold text-center mb-1">DIÁRIO DO SAPINHO</div>
+                
+                <!-- Histórico de Mensagens de Diário -->
+                <div id="adventureLogBox" class="flex-1 bg-black/70 rounded border border-gray-800 p-2 overflow-y-auto max-h-[140px] text-[7px] space-y-2 text-left font-mono">
+                    <!-- Gerado Dinamicamente Baseado na Fase -->
+                </div>
+            </div>
+            
+            <div class="border-t-2 border-gray-800 pt-2">
+                <div class="text-[8px] text-gray-400 text-center mb-1">VOO ENERGY</div>
+                <div class="w-full bg-gray-850 h-4 rounded-full overflow-hidden border-2 border-gray-700 relative">
+                    <div id="wingEnergyBar" class="bg-cyan-400 h-full w-0 transition-all duration-150"></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="w-full max-w-7xl flex justify-between items-center bg-gray-900/80 p-3 rounded-2xl border-2 border-gray-700 select-none lg:hidden mt-2 gap-2">
+        <!-- D-Pad Direcional -->
+        <div class="grid grid-cols-3 gap-1 w-28 h-28 justify-center items-center relative">
+            <div></div>
+            <button class="dpad-btn" id="touch-up">▲</button>
+            <div></div>
+            <button class="dpad-btn" id="touch-left">◀</button>
+            <div class="bg-gray-800 rounded-full w-3 h-3 mx-auto"></div>
+            <button class="dpad-btn" id="touch-right">▶</button>
+            <div></div>
+            <button class="dpad-btn" id="touch-down">▼</button>
+            <div></div>
+        </div>
+
+        <!-- Barra de Voo Compacta Mobile -->
+        <div class="flex-1 px-4 flex flex-col items-center gap-1 max-w-[150px]">
+            <span class="text-[7px] text-cyan-400">VOO</span>
+            <div class="w-full bg-black h-3 rounded-full overflow-hidden border border-gray-700">
+                <div id="wingEnergyBarMobile" class="bg-cyan-400 h-full w-0 transition-all duration-100"></div>
+            </div>
+        </div>
+
+        <!-- Botões de Ação B/A (NES) -->
+        <div class="flex gap-4 items-center mr-2">
+            <div class="flex flex-col items-center gap-1">
+                <button class="nes-btn" id="touch-z">Z</button>
+                <span class="text-[7px] text-gray-400">LÍNGUA</span>
+            </div>
+            <div class="flex flex-col items-center gap-1">
+                <button class="nes-btn bg-cyan-600 border-cyan-800 border-t-cyan-400" id="touch-x">X</button>
+                <span class="text-[7px] text-gray-400">PULO</span>
+            </div>
+        </div>
+    </footer>
+
+    <script type="module">
+        // Definição Estrita de 7 Biomas com Perigos Individuais e Cores Detalhadas
+        const BIOMAS = [
+            { id: 0, nome: "FLORESTA CLÁSSICA", corChao: "#1a4d1a", corChaoAlt: "#226622", perigoSolo: "carro", perigoAgua: "tronco", corAgua: "#0055aa", bgGradient: ["#0a220a", "#143314"] },
+            { id: 1, nome: "OCEANO DOS TUBARÕES", corChao: "#c2b280", corChaoAlt: "#d8cda4", perigoSolo: "caranguejo", perigoAgua: "barco_tubarao", corAgua: "#003d7a", bgGradient: ["#001a33", "#002b5c"] },
+            { id: 2, nome: "DESERTO QUENTE", corChao: "#d2b48c", corChaoAlt: "#cc9966", perigoSolo: "vazio_areia", perigoAgua: "ponte_deserto", corAgua: "#a0522d", bgGradient: ["#2d1e0f", "#4d3319"] },
+            { id: 3, nome: "METRÓPOLE NEON", corChao: "#1b1b1b", corChaoAlt: "#262626", perigoSolo: "cyber_carro", perigoAgua: "trilho_metro", corAgua: "#3d0066", bgGradient: ["#0a001a", "#1a0033"] },
+            { id: 4, nome: "CÉU DAS NUVENS (VOO)", corChao: "#202a44", corChaoAlt: "#303e65", perigoSolo: "aviao", perigoAgua: "abismo_vento", corAgua: "#0b1326", bgGradient: ["#050b14", "#0d1b2a"] },
+            { id: 5, nome: "CAVERNA DE LAVA", corChao: "#331a00", corChaoAlt: "#4d2600", perigoSolo: "rocha_fogo", perigoAgua: "ponte_lava", corAgua: "#ff3300", bgGradient: ["#1a0000", "#330000"] },
+            { id: 6, nome: "TEMPLO SAGRADO", corChao: "#4a3c31", corChaoAlt: "#5c4a3e", perigoSolo: "muralha_espinho", perigoAgua: "ponte_sagrada", corAgua: "#008080", bgGradient: ["#1a1512", "#2e2520"] }
+        ];
+
+        // Definição das 7 fases do Modo História
+        const LEVELS = [
+            { id: 1, name: "FLORESTA CLÁSSICA", biomeId: 0, target: 80, desc: "Cruze estradas perigosas e rios de troncos.", log: ["* Você acordou nos brejos florestais.", "* Pegue moscas de ouro para pontos rápidos.", "* Pegue moscas azuis para acumular energia de voo."] },
+            { id: 2, name: "MAR DE TUBARÕES", biomeId: 1, target: 100, desc: "Cuidado com barcos rápidos e tubarões vorazes.", log: ["* O oceano profundo é traiçoeiro!", "* Evite as nadadeiras de tubarão cinzas.", "* Você pode pousar no convés do Navio Gigante!"] },
+            { id: 3, name: "DESERTO QUENTE", biomeId: 2, target: 120, desc: "Areia escaldante. Use as placas Booster para saltar.", log: ["* Ventos arenosos e calor extremo.", "* Pise nos boosters amarelos para ser lançado adiante!", "* Cuidado com cobras rastejantes nas margens."] },
+            { id: 4, name: "METRÓPOLE NEON", biomeId: 3, target: 140, desc: "Vias rápidas futuristas. Use os portais de salto.", log: ["* Cidade tecnológica à noite.", "* Pise nos portais ciano e magenta para se teletransportar!", "* Cyber carros neon são extremamente rápidos!"] },
+            { id: 5, name: "CÉU DAS NUVENS", biomeId: 4, target: 160, desc: "Pule alto no vento e desvie de aviões clássicos.", log: ["* Bem vindo ao céu das tempestades.", "* Desvie de aviões de hélice e abismos de vento.", "* Use o super salto (tecla X) para planar livremente."] },
+            { id: 6, name: "CAVERNA DE LAVA", biomeId: 5, target: 180, desc: "Pontes que desabam e rochas sobre lagos de magma.", log: ["* Calor escaldante das cavernas vulcânicas.", "* Atenção: As pontes quebradiças desabam após 1.5 segundos!", "* Rochas de lava ajudam a atravessar o magma."] },
+            { id: 7, name: "TEMPLO SAGRADO", biomeId: 6, target: 200, desc: "Desvie dos espinhos ritmados e alcance o altar final!", log: ["* Você chegou ao Templo Sagrado do Brejo!", "* Armadilhas de espinhos de pedra sobem de forma ritmada.", "* Suba com cuidado extremo para o Altar Final!"] }
+        ];
+
+        let currentLevelIndex = 0; // Fase 1 a 7 (0 a 6 indexado)
+        let unlockedLevel = 1;      // Fase máxima desbloqueada pelo save
+        let currentName = "HEROI";
+        
+        let score = 0;
+        let gameActive = false;
+        let currentBiomaIndex = 0;
+
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const GRID_SIZE = 40; 
+        const COLS = canvas.width / GRID_SIZE; // 20 colunas
+        const ROWS = canvas.height / GRID_SIZE; // 12 linhas verticais
+
+        // Parâmetros do Sapo
+        const frog = {
+            gridX: 10,
+            gridY: ROWS - 2,
+            x: 10 * GRID_SIZE,
+            y: (ROWS - 2) * GRID_SIZE,
+            targetX: 10 * GRID_SIZE,
+            targetY: (ROWS - 2) * GRID_SIZE,
+            size: 32,
+            animFrame: 0,
+            dir: 'UP',
+            
+            isJumping: false,
+            jumpTime: 0,
+            jumpDuration: 15,
+            jumpHeightOffset: 0,
+            
+            tongueActive: false,
+            tongueLength: 0,
+            tongueMaxLength: GRID_SIZE * 3.5,
+            tongueDir: 'UP',
+            tongueState: 'extending',
+
+            isFlying: false,
+            wingEnergy: 0,
+            maxEnergy: 100,
+            wingAnimTimer: 0,
+
+            ridingPlatform: null,
+            hasShield: false, 
+            shieldAnim: 0
+        };
+
+        let rowsData = [];
+        let entities = [];
+        let flies = [];
+        let items = [];
+
+        function setupMobileButton(id, action) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                action();
+            }, { passive: false });
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                action();
+            });
+        }
+
+        function checkSaveState() {
+            try {
+                const savedLevel = localStorage.getItem("infrog_campaign_unlocked");
+                const savedName = localStorage.getItem("infrog_campaign_name");
+                
+                if (savedLevel) {
+                    unlockedLevel = parseInt(savedLevel);
+                    currentName = savedName || "HEROI";
+                    document.getElementById("playerNameInput").value = currentName;
+                    document.getElementById("btnContinue").disabled = false;
+                    document.getElementById("saveStatusText").innerHTML = `SAVE LOCAL: <span class="text-green-400">${currentName}</span> - FASE <span class="text-green-400">${unlockedLevel}</span>`;
+                } else {
+                    unlockedLevel = 1;
+                    document.getElementById("btnContinue").disabled = true;
+                    document.getElementById("saveStatusText").innerHTML = `<span class="text-gray-500">NENHUM SAVE LOCAL ENCONTRADO</span>`;
+                }
+            } catch (err) {
+                console.error("Erro ao ler localStorage", err);
+            }
+            updateChecklistUI();
+        }
+
+        function saveStoryProgress() {
+            try {
+                localStorage.setItem("infrog_campaign_unlocked", unlockedLevel);
+                localStorage.setItem("infrog_campaign_name", currentName);
+            } catch (err) {
+                console.error("Erro ao salvar no localStorage", err);
+            }
+            checkSaveState();
+        }
+
+        function updateChecklistUI() {
+            const listContainer = document.getElementById("checklistFases");
+            if (!listContainer) return;
+            
+            listContainer.innerHTML = "";
+            LEVELS.forEach((lvl, index) => {
+                const isCompleted = index < unlockedLevel - 1;
+                const isCurrent = index === currentLevelIndex;
+                let badge = "🔒";
+                let colorClass = "text-gray-500";
+                
+                if (isCompleted) {
+                    badge = "✅ COMPLETO";
+                    colorClass = "text-green-400 font-bold";
+                } else if (isCurrent) {
+                    badge = "⭐ ATUAL";
+                    colorClass = "text-yellow-400 font-bold animate-pulse";
+                }
+                
+                const li = document.createElement("li");
+                li.className = `flex justify-between items-center py-1.5 border-b border-gray-800 ${colorClass}`;
+                li.innerHTML = `
+                    <span>F${lvl.id}. ${lvl.name.split(" ")[0]}</span>
+                    <span>${badge}</span>
+                `;
+                listContainer.appendChild(li);
+            });
+        }
+
+        function updateAdventureLog(msgList) {
+            const logBox = document.getElementById("adventureLogBox");
+            if (!logBox) return;
+            logBox.innerHTML = "";
+            msgList.forEach(msg => {
+                const div = document.createElement("div");
+                div.className = "text-gray-300 leading-relaxed font-mono";
+                div.textContent = msg;
+                logBox.appendChild(div);
+            });
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let soundEnabled = false;
+        let musicIntervalId = null;
+        let musicStep = 0;
+
+        const chillProgression = [
+            [261.63, 329.63, 392.00, 493.88], // Cmaj7
+            [220.00, 261.63, 329.63, 392.00], // Am7
+            [174.61, 261.63, 349.23, 440.00], // Fmaj7
+            [196.00, 293.66, 392.00, 493.88]  // G7
+        ];
+
+        function playSynthSound(type) {
+            if (!soundEnabled) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+
+                if (type === 'hop') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(320, now + 0.1);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'jump') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.exponentialRampToValueAtTime(450, now + 0.22);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.22);
+                    osc.start(now);
+                    osc.stop(now + 0.22);
+                } else if (type === 'tongue') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(500, now);
+                    osc.frequency.linearRampToValueAtTime(120, now + 0.12);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'eat') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(392, now);
+                    osc.frequency.setValueAtTime(523, now + 0.08);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                } else if (type === 'splash') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(90, now);
+                    osc.frequency.linearRampToValueAtTime(25, now + 0.25);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'crash') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(110, now);
+                    osc.frequency.linearRampToValueAtTime(8, now + 0.45);
+                    gain.gain.setValueAtTime(0.18, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.45);
+                    osc.start(now);
+                    osc.stop(now + 0.45);
+                } else if (type === 'wings') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.setValueAtTime(400, now + 0.06);
+                    osc.frequency.setValueAtTime(500, now + 0.12);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.22);
+                    osc.start(now);
+                    osc.stop(now + 0.22);
+                } else if (type === 'biome') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(261, now);
+                    osc.frequency.exponentialRampToValueAtTime(523, now + 0.35);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'coin') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.08);
+                    gain.gain.setValueAtTime(0.07, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'powerup') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(330, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                }
+            } catch (e) {
+                console.log("Audio Error:", e);
+            }
+        }
+
+        function playBackgroundMusic() {
+            if (!soundEnabled) return;
+            try {
+                const now = audioCtx.currentTime;
+                const chordIdx = Math.floor(musicStep / 4) % chillProgression.length;
+                const chord = chillProgression[chordIdx];
+                const noteInChord = chord[musicStep % chord.length];
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(noteInChord, now);
+                gain.gain.setValueAtTime(0.015, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+                osc.start(now);
+                osc.stop(now + 0.4);
+
+                if (musicStep % 4 === 0) {
+                    const bassOsc = audioCtx.createOscillator();
+                    const bassGain = audioCtx.createGain();
+                    bassOsc.connect(bassGain);
+                    bassGain.connect(audioCtx.destination);
+                    
+                    bassOsc.type = 'triangle';
+                    bassOsc.frequency.setValueAtTime(chord[0] / 2, now);
+                    bassGain.gain.setValueAtTime(0.02, now);
+                    bassGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+                    
+                    bassOsc.start(now);
+                    bassOsc.stop(now + 1.3);
+                }
+
+                musicStep++;
+            } catch (e) {
+                console.log("Music Error:", e);
+            }
+        }
+
+        function startMusicScheduler() {
+            if (musicIntervalId) clearInterval(musicIntervalId);
+            musicIntervalId = setInterval(playBackgroundMusic, 272);
+        }
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('musicToggleBtn');
+            if (soundEnabled) {
+                audioCtx.resume();
+                btn.textContent = "ATIVADO";
+                btn.className = "px-2 py-1 bg-green-950 border border-green-800 text-green-200 rounded hover:bg-green-900 transition-colors";
+                startMusicScheduler();
+                playSynthSound('eat');
+            } else {
+                btn.textContent = "MUTADO";
+                btn.className = "px-2 py-1 bg-red-950 border border-red-800 text-red-200 rounded hover:bg-red-900 transition-colors";
+                if (musicIntervalId) {
+                    clearInterval(musicIntervalId);
+                    musicIntervalId = null;
+                }
+            }
+        }
+        document.getElementById('musicToggleBtn').onclick = toggleAudio;
+
+        function createRow(yIndex) {
+            const currentLevel = LEVELS[currentLevelIndex];
+            const biome = BIOMAS[currentLevel.biomeId];
+
+            let type = "safe";
+            if (yIndex === ROWS - 1 || yIndex === ROWS - 2) {
+                type = "safe";
+            } else {
+                const rand = Math.random();
+                if (rand < 0.35) {
+                    type = "safe";
+                } else if (rand < 0.70) {
+                    type = "traffic";
+                } else {
+                    type = "water";
+                }
+            }
+
+            const speed = (0.8 + Math.random() * 2.2) * (Math.random() < 0.5 ? 1 : -1);
+
+            const row = {
+                yIndex: yIndex,
+                y: yIndex * GRID_SIZE,
+                type: type,
+                bioma: biome,
+                speed: speed,
+                hasObstaclesSpawned: false,
+                boosterCol: (type === "safe" && biome.id === 2 && Math.random() < 0.15) ? Math.floor(Math.random() * (COLS - 2)) + 1 : null, 
+                portalColA: (type === "safe" && biome.id === 3 && Math.random() < 0.15) ? 2 : null, 
+                portalColB: (type === "safe" && biome.id === 3 && Math.random() < 0.15) ? COLS - 3 : null, 
+                spikes: (type === "safe" && biome.id === 6 && Math.random() < 0.25) ? [3, 8, 14] : null, 
+                spikeState: 0 
+            };
+
+            // Spawn de veículos e plataformas
+            if (type === "traffic") {
+                const count = 3 + Math.floor(Math.random() * 2); 
+                for (let i = 0; i < count; i++) {
+                    spawnEntity(row, i * (canvas.width / count) + Math.random() * 60);
+                }
+            } else if (type === "water") {
+                if (biome.id === 1 && Math.random() < 0.3) {
+                    spawnGiantShip(row);
+                } else {
+                    const count = 3 + Math.floor(Math.random() * 2);
+                    for (let i = 0; i < count; i++) {
+                        spawnEntity(row, i * (canvas.width / count) + Math.random() * 50);
+                    }
+                }
+                
+                if (biome.perigoAgua === "barco_tubarao" && Math.random() < 0.5) {
+                    spawnShark(row);
+                }
+            }
+
+            // Spawn de coletáveis
+            if (type === "safe" && yIndex < ROWS - 2) {
+                const randItem = Math.random();
+                if (randItem < 0.25) {
+                    flies.push({
+                        x: Math.floor(Math.random() * COLS) * GRID_SIZE + GRID_SIZE / 2,
+                        y: yIndex * GRID_SIZE + GRID_SIZE / 2,
+                        yIndex: yIndex,
+                        active: true,
+                        pulse: 0,
+                        type: Math.random() < 0.25 ? "blue" : "gold"
+                    });
+                } else if (randItem < 0.40) {
+                    items.push({
+                        x: Math.floor(Math.random() * COLS) * GRID_SIZE + GRID_SIZE / 2,
+                        y: yIndex * GRID_SIZE + GRID_SIZE / 2,
+                        yIndex: yIndex,
+                        active: true,
+                        type: "coin",
+                        frame: 0
+                    });
+                } else if (randItem < 0.44 && biome.id === 4) {
+                    items.push({
+                        x: Math.floor(Math.random() * COLS) * GRID_SIZE + GRID_SIZE / 2,
+                        y: yIndex * GRID_SIZE + GRID_SIZE / 2,
+                        yIndex: yIndex,
+                        active: true,
+                        type: "shield",
+                        frame: 0
+                    });
+                }
+            }
+
+            return row;
+        }
+
+        function spawnEntity(row, customX = null) {
+            const startX = customX !== null ? customX : (row.speed > 0 ? -150 : canvas.width + 50);
+            const bioma = row.bioma;
+
+            let entType = "car";
+            let width = 70 + Math.random() * 50; 
+            let height = 30;
+
+            if (row.type === "traffic") {
+                if (bioma.perigoSolo === "cyber_carro") {
+                    entType = "cyber_car";
+                    width = 90;
+                } else if (bioma.perigoSolo === "aviao") {
+                    entType = "plane";
+                    width = 100;
+                    height = 36;
+                } else {
+                    entType = "car";
+                }
+            } else if (row.type === "water") {
+                if (bioma.perigoAgua === "barco_tubarao") {
+                    entType = "boat";
+                    width = 120;
+                } else if (bioma.perigoAgua === "ponte_lava") {
+                    entType = (Math.random() < 0.4) ? "crumbling_bridge" : "lava_stone";
+                    width = 100;
+                } else {
+                    entType = (bioma.id === 0 && Math.random() < 0.35) ? "lilypad" : "log";
+                    width = (entType === "lilypad") ? 50 : 125;
+                }
+            }
+
+            entities.push({
+                x: startX,
+                y: row.yIndex * GRID_SIZE + (GRID_SIZE - height) / 2,
+                yIndex: row.yIndex,
+                width: width,
+                height: height,
+                speed: row.speed,
+                type: entType,
+                color: getRandomNESColor(entType, bioma.id),
+                sinkTimer: 0,
+                crocTimer: Math.random() * 100,
+                isCroc: (entType === "log" && Math.random() < 0.3)
+            });
+        }
+
+        function spawnGiantShip(row) {
+            const startX = row.speed > 0 ? -300 : canvas.width + 100;
+            entities.push({
+                x: startX,
+                y: row.yIndex * GRID_SIZE + 2,
+                yIndex: row.yIndex,
+                width: 220, 
+                height: 36,
+                speed: row.speed * 0.8,
+                type: "giant_ship",
+                color: "#5c4033",
+                cargoCrates: [
+                    { relX: 45, width: 25 },
+                    { relX: 135, width: 25 }
+                ]
+            });
+        }
+
+        function spawnShark(row) {
+            entities.push({
+                x: Math.random() * canvas.width,
+                y: row.yIndex * GRID_SIZE + 5,
+                yIndex: row.yIndex,
+                width: 45,
+                height: 30,
+                speed: row.speed * 1.6,
+                type: "shark",
+                color: "#1d6c8a",
+                animTimer: Math.random() * 10
+            });
+        }
+
+        function getRandomNESColor(type, biomaId) {
+            if (type === "car") {
+                const colors = ["#d81b60", "#e53935", "#8e24aa", "#3949ab", "#00acc1", "#ffb300", "#f4511e"];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+            if (type === "cyber_car") {
+                const colors = ["#00ffff", "#ff00ff", "#ff0055", "#00ff66"];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+            if (type === "log") return "#8b5a2b";
+            if (type === "boat") return "#d7a15c";
+            if (type === "lava_stone") return "#4a4a4a";
+            if (type === "plane") return "#cccccc";
+            return "#ffffff";
+        }
+
+        function initMap() {
+            rowsData = [];
+            entities = [];
+            flies = [];
+            items = [];
+            for (let i = 0; i < ROWS + 5; i++) {
+                rowsData.push(createRow(ROWS - 1 - i));
+            }
+        }
+
+        function handleInput(dir) {
+            if (!gameActive) return;
+            if (frog.isJumping && !frog.isFlying) return;
+
+            frog.dir = dir;
+            let nextGridX = frog.gridX;
+            let nextGridY = frog.gridY;
+
+            if (dir === 'UP') nextGridY--;
+            if (dir === 'DOWN') nextGridY++;
+            if (dir === 'LEFT') nextGridX--;
+            if (dir === 'RIGHT') nextGridX++;
+
+            if (nextGridX >= 0 && nextGridX < COLS) {
+                frog.gridX = nextGridX;
+                frog.targetX = nextGridX * GRID_SIZE;
+            }
+            
+            frog.gridY = nextGridY;
+            frog.targetY = nextGridY * GRID_SIZE;
+
+            adjustCamera();
+            frog.animFrame = 5;
+            playSynthSound('hop');
+            frog.ridingPlatform = null;
+        }
+
+        function triggerTongue() {
+            if (!gameActive || frog.tongueActive) return;
+            frog.tongueActive = true;
+            frog.tongueLength = 0;
+            frog.tongueState = 'extending';
+            frog.tongueDir = frog.dir;
+            playSynthSound('tongue');
+        }
+
+        function triggerJump() {
+            if (!gameActive) return;
+            if (frog.wingEnergy > 0 && !frog.isFlying) {
+                frog.isFlying = true;
+                playSynthSound('wings');
+            } else if (!frog.isJumping && !frog.isFlying) {
+                frog.isJumping = true;
+                frog.jumpTime = 0;
+                playSynthSound('jump');
+            }
+        }
+
+        // Eventos de teclado
+        window.addEventListener('keydown', function(e) {
+            if (document.activeElement === document.getElementById('playerNameInput')) {
+                return; 
+            }
+            
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.key)) {
+                e.preventDefault();
+            }
+            
+            if (!gameActive) return;
+
+            switch(e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    handleInput('UP');
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    handleInput('DOWN');
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    handleInput('LEFT');
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    handleInput('RIGHT');
+                    break;
+                case 'z':
+                case 'Z':
+                    triggerTongue();
+                    break;
+                case 'x':
+                case 'X':
+                case ' ':
+                    triggerJump();
+                    break;
+            }
+        });
+
+        function adjustCamera() {
+            const centerY = ROWS / 2;
+            if (frog.gridY < centerY) {
+                const diff = centerY - frog.gridY;
+                frog.gridY += diff;
+                frog.targetY += diff * GRID_SIZE;
+                frog.y += diff * GRID_SIZE;
+
+                entities.forEach(ent => {
+                    ent.yIndex += diff;
+                    ent.y = ent.yIndex * GRID_SIZE + (GRID_SIZE - ent.height) / 2;
+                });
+                flies.forEach(f => {
+                    f.yIndex += diff;
+                    f.y = f.yIndex * GRID_SIZE + GRID_SIZE / 2;
+                });
+                items.forEach(it => {
+                    it.yIndex += diff;
+                    it.y = it.yIndex * GRID_SIZE + GRID_SIZE / 2;
+                });
+                rowsData.forEach(row => {
+                    row.yIndex += diff;
+                    row.y = row.yIndex * GRID_SIZE;
+                });
+
+                for (let i = 0; i < diff; i++) {
+                    const topRowY = getTopRowYIndex() - 1;
+                    rowsData.push(createRow(topRowY));
+                }
+
+                rowsData = rowsData.filter(r => r.yIndex < ROWS + 10);
+                entities = entities.filter(e => e.yIndex < ROWS + 10);
+                flies = flies.filter(f => f.yIndex < ROWS + 10);
+                items = items.filter(it => it.yIndex < ROWS + 10);
+
+                score += diff;
+                document.getElementById("scoreVal").textContent = score + "m";
+                
+                // Invocar Portal Dourado de Fim de Fase
+                const currentLevel = LEVELS[currentLevelIndex];
+                if (score >= currentLevel.target && !entities.some(e => e.type === "portal")) {
+                    const topRowY = getTopRowYIndex();
+                    entities.push({
+                        x: Math.floor(COLS / 2) * GRID_SIZE,
+                        y: topRowY * GRID_SIZE + 4,
+                        yIndex: topRowY,
+                        width: 48,
+                        height: 48,
+                        speed: 0,
+                        type: "portal"
+                    });
+                }
+            }
+        }
+
+        function getTopRowYIndex() {
+            let minY = 9999;
+            rowsData.forEach(r => {
+                if (r.yIndex < minY) minY = r.yIndex;
+            });
+            return minY;
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            const speedCoeff = 0.35;
+            frog.x += (frog.targetX - frog.x) * speedCoeff;
+            frog.y += (frog.targetY - frog.y) * speedCoeff;
+
+            if (frog.animFrame > 0) frog.animFrame--;
+
+            if (frog.hasShield) {
+                frog.shieldAnim += 0.1;
+            }
+
+            if (frog.isFlying) {
+                frog.wingAnimTimer += 0.25;
+                frog.wingEnergy -= 0.35;
+                if (frog.wingEnergy <= 0) {
+                    frog.wingEnergy = 0;
+                    frog.isFlying = false;
+                }
+                const energyPercent = (frog.wingEnergy / frog.maxEnergy) * 100;
+                document.getElementById("wingEnergyBar").style.width = `${energyPercent}%`;
+                document.getElementById("wingEnergyBarMobile").style.width = `${energyPercent}%`;
+            }
+
+            if (frog.isJumping && !frog.isFlying) {
+                frog.jumpTime++;
+                const duration = frog.jumpDuration;
+                const t = frog.jumpTime;
+                frog.jumpHeightOffset = -4.5 * t * (t - duration);
+
+                if (t >= duration) {
+                    frog.isJumping = false;
+                    frog.jumpHeightOffset = 0;
+                }
+            }
+
+            if (frog.tongueActive) {
+                if (frog.tongueState === 'extending') {
+                    frog.tongueLength += 14;
+                    if (frog.tongueLength >= frog.tongueMaxLength) {
+                        frog.tongueState = 'retracting';
+                    }
+                    checkTongueFlyCollision();
+                } else {
+                    frog.tongueLength -= 14;
+                    if (frog.tongueLength <= 0) {
+                        frog.tongueLength = 0;
+                        frog.tongueActive = false;
+                    }
+                }
+            }
+
+            // Atualização de Obstáculos
+            entities.forEach(ent => {
+                ent.x += ent.speed;
+                if (ent.speed > 0 && ent.x > canvas.width + ent.width) {
+                    ent.x = -ent.width;
+                } else if (ent.speed < 0 && ent.x < -ent.width) {
+                    ent.x = canvas.width + ent.width;
+                }
+                if (ent.type === "shark") {
+                    ent.animTimer += 0.15;
+                    ent.y += Math.sin(ent.animTimer) * 0.35;
+                }
+                if (ent.isCroc) {
+                    ent.crocTimer += 1.5;
+                }
+                if (frog.ridingPlatform === ent && (ent.type === "lilypad" || ent.type === "crumbling_bridge")) {
+                    ent.sinkTimer += 1;
+                    if (ent.sinkTimer > 90) { 
+                        frog.ridingPlatform = null; 
+                    }
+                }
+            });
+
+            // Timers das Fileiras (Espinhos)
+            rowsData.forEach(row => {
+                if (row.spikes) {
+                    row.spikeState = Math.floor(Date.now() / 1000) % 2;
+                }
+            });
+
+            if (frog.ridingPlatform && !frog.isFlying && !frog.isJumping) {
+                frog.x += frog.ridingPlatform.speed;
+                frog.targetX = frog.x;
+                frog.gridX = Math.round(frog.x / GRID_SIZE);
+
+                if (frog.x < -15 || frog.x > canvas.width - 25) {
+                    killFrog("Você flutuou para fora da tela!");
+                }
+            }
+
+            checkTerrainHazards();
+            checkItemPickup();
+        }
+
+        function checkItemPickup() {
+            const fx = frog.x + GRID_SIZE / 2;
+            const fy = frog.y + GRID_SIZE / 2;
+
+            items.forEach(it => {
+                if (it.active) {
+                    const dist = Math.hypot(it.x - fx, it.y - fy);
+                    if (dist < 28) {
+                        it.active = false;
+                        if (it.type === "coin") {
+                            playSynthSound('coin');
+                            score += 15;
+                            document.getElementById("scoreVal").textContent = score + "m";
+                        } else if (it.type === "shield") {
+                            playSynthSound('powerup');
+                            frog.hasShield = true;
+                        }
+                    }
+                }
+            });
+        }
+
+        function checkTongueFlyCollision() {
+            let tx = frog.x + GRID_SIZE / 2;
+            let ty = frog.y + GRID_SIZE / 2;
+
+            if (frog.tongueDir === 'UP') ty -= frog.tongueLength;
+            if (frog.tongueDir === 'DOWN') ty += frog.tongueLength;
+            if (frog.tongueDir === 'LEFT') tx -= frog.tongueLength;
+            if (frog.tongueDir === 'RIGHT') tx += frog.tongueLength;
+
+            flies.forEach(fly => {
+                if (fly.active) {
+                    const dist = Math.hypot(fly.x - tx, fly.y - ty);
+                    if (dist < 24) {
+                        fly.active = false;
+                        playSynthSound('eat');
+                        
+                        if (fly.type === "blue") {
+                            frog.wingEnergy = Math.min(frog.maxEnergy, frog.wingEnergy + 35);
+                            const energyPercent = (frog.wingEnergy / frog.maxEnergy) * 100;
+                            document.getElementById("wingEnergyBar").style.width = `${energyPercent}%`;
+                            document.getElementById("wingEnergyBarMobile").style.width = `${energyPercent}%`;
+                        } else {
+                            score += 25;
+                            document.getElementById("scoreVal").textContent = score + "m";
+                        }
+                    }
+                }
+            });
+        }
+
+        function checkTerrainHazards() {
+            const fx = frog.x + GRID_SIZE / 2;
+            const fy = frog.y + GRID_SIZE / 2;
+
+            if (frog.isFlying) {
+                entities.forEach(ent => {
+                    if (ent.type === "plane") {
+                        const boxX = ent.x;
+                        const boxY = ent.y;
+                        if (fx > boxX && fx < boxX + ent.width && fy > boxY && fy < boxY + ent.height) {
+                            killFrog("Colisão no céu com um avião clássico!");
+                        }
+                    }
+                });
+                return;
+            }
+
+            const currentFrogRowYIndex = Math.round(frog.y / GRID_SIZE);
+            const currentRow = rowsData.find(r => r.yIndex === currentFrogRowYIndex);
+
+            if (!currentRow) return;
+
+            const isMidAir = (frog.isJumping && frog.jumpHeightOffset > 8);
+
+            // Toque no Portal de Vitória
+            entities.forEach(ent => {
+                if (ent.type === "portal") {
+                    const dist = Math.hypot((ent.x + ent.width/2) - fx, (ent.y + ent.height/2) - fy);
+                    if (dist < 32) {
+                        triggerStageComplete();
+                    }
+                }
+            });
+
+            // Booster Pad
+            if (!isMidAir && currentRow.boosterCol !== null && frog.gridX === currentRow.boosterCol) {
+                frog.gridY -= 2; 
+                frog.targetY = frog.gridY * GRID_SIZE;
+                adjustCamera();
+                playSynthSound('powerup');
+                return;
+            }
+
+            // Portais Cyber
+            if (!isMidAir && currentRow.portalColA !== null && frog.gridX === currentRow.portalColA) {
+                frog.gridX = currentRow.portalColB;
+                frog.x = frog.gridX * GRID_SIZE;
+                frog.targetX = frog.x;
+                playSynthSound('biome');
+                return;
+            }
+
+            // Espinhos Ativos
+            if (!isMidAir && currentRow.spikes !== null && currentRow.spikeState === 1) {
+                if (currentRow.spikes.includes(frog.gridX)) {
+                    killFrog("O sapo pisou nos espinhos do templo antigo!");
+                    return;
+                }
+            }
+
+            if (currentRow.type === "traffic") {
+                if (!isMidAir) {
+                    entities.forEach(ent => {
+                        if (ent.yIndex === currentFrogRowYIndex && ent.type !== "log" && ent.type !== "boat" && ent.type !== "lava_stone" && ent.type !== "giant_ship" && ent.type !== "lilypad" && ent.type !== "crumbling_bridge") {
+                            const boxX = ent.x;
+                            const boxY = ent.y;
+                            if (fx > boxX && fx < boxX + ent.width && fy > boxY && fy < boxY + ent.height) {
+                                killFrog("O sapo foi esmagado por um obstáculo do tráfego!");
+                            }
+                        }
+                    });
+                }
+            }
+
+            if (currentRow.type === "water") {
+                let safeOnPlatform = false;
+                let platformMounted = null;
+
+                entities.forEach(ent => {
+                    if (ent.yIndex === currentFrogRowYIndex && (ent.type === "log" || ent.type === "boat" || ent.type === "lava_stone" || ent.type === "giant_ship" || ent.type === "lilypad" || ent.type === "crumbling_bridge")) {
+                        if (fx >= ent.x && fx <= ent.x + ent.width) {
+                            
+                            // Jacaré ativo
+                            if (ent.isCroc && Math.floor(ent.crocTimer / 40) % 2 === 1) {
+                                const isNearHead = ent.speed > 0 ? (fx > ent.x + ent.width - 30) : (fx < ent.x + 30);
+                                if (isNearHead) {
+                                    killFrog("O jacaré do tronco abriu a boca e devorou o sapinho!");
+                                }
+                            }
+
+                            // Navio Gigante
+                            if (ent.type === "giant_ship") {
+                                const relativeX = fx - ent.x;
+                                ent.cargoCrates.forEach(crate => {
+                                    if (relativeX > crate.relX && relativeX < crate.relX + crate.width) {
+                                        killFrog("O sapinho colidiu com uma carga explosiva do navio!");
+                                    }
+                                });
+                            }
+
+                            safeOnPlatform = true;
+                            platformMounted = ent;
+                        }
+                    }
+                });
+
+                if (!safeOnPlatform && !isMidAir) {
+                    const bioma = currentRow.bioma;
+                    if (bioma.perigoAgua === "ponte_lava") {
+                        killFrog("O sapo caiu direto na lava fervente!");
+                    } else if (bioma.perigoAgua === "abismo_vento") {
+                        killFrog("O sapo despencou no abismo profundo!");
+                    } else {
+                        playSynthSound('splash');
+                        killFrog("O sapo não sabe nadar nesta correnteza e afundou!");
+                    }
+                } else {
+                    frog.ridingPlatform = platformMounted;
+                }
+            } else {
+                frog.ridingPlatform = null;
+            }
+
+            if (!isMidAir) {
+                entities.forEach(ent => {
+                    if (ent.type === "shark" && ent.yIndex === currentFrogRowYIndex) {
+                        const boxX = ent.x;
+                        if (fx > boxX - 10 && fx < boxX + ent.width + 10) {
+                            killFrog("Cuidado! Um tubarão engoliu o sapinho de uma vez!");
+                        }
+                    }
+                });
+            }
+        }
+
+        function killFrog(reason) {
+            if (frog.hasShield) {
+                frog.hasShield = false;
+                playSynthSound('crash');
+                frog.isJumping = true;
+                frog.jumpTime = 0;
+                return;
+            }
+
+            gameActive = false;
+            playSynthSound('crash');
+            
+            document.getElementById("alertDesc").innerHTML = `
+                ${reason}<br><br>
+                <span class="text-yellow-400 font-bold">Progresso: ${score} metros</span>
+            `;
+            document.getElementById("customAlert").classList.remove("hidden");
+        }
+
+        function triggerStageComplete() {
+            gameActive = false;
+            playSynthSound('biome');
+
+            const currentLevel = LEVELS[currentLevelIndex];
+            
+            if (currentLevelIndex === 6) {
+                // Fim da campanha do Templo Sagrado
+                document.getElementById("congratsAlert").classList.remove("hidden");
+            } else {
+                // Avança estágio
+                if (currentLevelIndex + 1 === unlockedLevel) {
+                    unlockedLevel = Math.min(7, unlockedLevel + 1);
+                    saveStoryProgress();
+                }
+                document.getElementById("victoryDesc").textContent = `Você dominou o bioma: ${currentLevel.name}! Prepare-se para o próximo desafio.`;
+                document.getElementById("victoryAlert").classList.remove("hidden");
+            }
+        }
+
+        function advanceNextStage() {
+            document.getElementById("victoryAlert").classList.add("hidden");
+            currentLevelIndex++;
+            restartGame();
+        }
+
+        function backToMenu() {
+            document.getElementById("congratsAlert").classList.add("hidden");
+            document.getElementById("startScreen").classList.remove("hidden");
+            checkSaveState();
+        }
+
+        function startCampaign(isNewGame) {
+            const inputVal = document.getElementById("playerNameInput").value.trim().toUpperCase();
+            currentName = inputVal || "HEROI";
+            document.getElementById("activeHeroLabel").textContent = currentName;
+
+            if (isNewGame) {
+                unlockedLevel = 1;
+                currentLevelIndex = 0;
+                saveStoryProgress();
+            } else {
+                currentLevelIndex = unlockedLevel - 1;
+            }
+
+            document.getElementById("startScreen").classList.add("hidden");
+            if (!soundEnabled) {
+                toggleAudio();
+            }
+            restartGame();
+        }
+
+        function restartGame() {
+            score = 0;
+            document.getElementById("scoreVal").textContent = "0m";
+
+            const currentLevel = LEVELS[currentLevelIndex];
+            document.getElementById("faseText").textContent = `${currentLevel.id}/7`;
+            document.getElementById("metaVal").textContent = `${currentLevel.target}m`;
+            document.getElementById("biomaText").textContent = currentLevel.name;
+
+            updateAdventureLog(currentLevel.log);
+
+            frog.gridX = Math.floor(COLS / 2);
+            frog.gridY = ROWS - 2;
+            frog.x = Math.floor(COLS / 2) * GRID_SIZE;
+            frog.y = (ROWS - 2) * GRID_SIZE;
+            frog.targetX = frog.x;
+            frog.targetY = frog.y;
+            frog.dir = 'UP';
+            frog.isJumping = false;
+            frog.jumpHeightOffset = 0;
+            frog.isFlying = false;
+            frog.wingEnergy = 0;
+            frog.tongueActive = false;
+            frog.ridingPlatform = null;
+            frog.hasShield = false;
+            
+            document.getElementById("wingEnergyBar").style.width = "0%";
+            document.getElementById("wingEnergyBarMobile").style.width = "0%";
+
+            currentBiomaIndex = currentLevel.biomeId;
+            initMap();
+            
+            document.getElementById("customAlert").classList.add("hidden");
+            gameActive = true;
+            updateChecklistUI();
+        }
+
+        document.getElementById("btnContinue").onclick = () => startCampaign(false);
+        document.getElementById("btnNewGame").onclick = () => startCampaign(true);
+        document.getElementById("btnRestartGame").onclick = restartGame;
+        document.getElementById("btnNextStage").onclick = advanceNextStage;
+        document.getElementById("btnBackToMenu").onclick = backToMenu;
+
+        function draw() {
+            const bioma = BIOMAS[currentBiomaIndex];
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, bioma.bgGradient[0]);
+            grad.addColorStop(1, bioma.bgGradient[1]);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            rowsData.forEach(row => {
+                const isAlt = (Math.abs(row.yIndex) % 2 === 0);
+                
+                if (row.type === "safe") {
+                    ctx.fillStyle = isAlt ? row.bioma.corChaoAlt : row.bioma.corChao;
+                    ctx.fillRect(0, row.y, canvas.width, GRID_SIZE);
+
+                    ctx.fillStyle = "rgba(255,255,255,0.06)";
+                    for (let i = 0; i < COLS; i++) {
+                        if ((i + row.yIndex) % 3 === 0) {
+                            ctx.fillRect(i * GRID_SIZE + 4, row.y + 4, 6, 6);
+                            ctx.fillRect(i * GRID_SIZE + 24, row.y + 18, 4, 4);
+                        }
+                    }
+
+                    // Booster Pad
+                    if (row.boosterCol !== null) {
+                        ctx.fillStyle = "#e5c158";
+                        ctx.fillRect(row.boosterCol * GRID_SIZE + 10, row.y + 12, 20, 16);
+                        ctx.fillStyle = "#fff";
+                        ctx.fillRect(row.boosterCol * GRID_SIZE + 18, row.y + 16, 4, 8);
+                        ctx.fillRect(row.boosterCol * GRID_SIZE + 16, row.y + 16, 8, 2);
+                    }
+
+                    // Portais Místicos
+                    if (row.portalColA !== null) {
+                        ctx.fillStyle = "#00ffff";
+                        ctx.strokeStyle = "#fff";
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(row.portalColA * GRID_SIZE + 20, row.y + 20, 12, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.fillStyle = "#ff00ff";
+                        ctx.beginPath();
+                        ctx.arc(row.portalColB * GRID_SIZE + 20, row.y + 20, 12, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+
+                    // Espinhos
+                    if (row.spikes !== null) {
+                        ctx.fillStyle = row.spikeState === 1 ? "#ef4444" : "#4a5568";
+                        row.spikes.forEach(col => {
+                            ctx.beginPath();
+                            ctx.moveTo(col * GRID_SIZE + 10, row.y + 35);
+                            ctx.lineTo(col * GRID_SIZE + 20, row.y + (row.spikeState === 1 ? 5 : 25));
+                            ctx.lineTo(col * GRID_SIZE + 30, row.y + 35);
+                            ctx.fill();
+                        });
+                    }
+
+                } else if (row.type === "water") {
+                    ctx.fillStyle = row.bioma.corAgua;
+                    ctx.fillRect(0, row.y, canvas.width, GRID_SIZE);
+
+                    ctx.fillStyle = "rgba(255,255,255,0.12)";
+                    const offsetWave = (Date.now() / 250) % GRID_SIZE;
+                    for (let i = -1; i < COLS + 1; i++) {
+                        ctx.fillRect(i * GRID_SIZE + offsetWave, row.y + GRID_SIZE/2 - 2, 14, 3);
+                    }
+                } else if (row.type === "traffic") {
+                    ctx.fillStyle = "#1e212b";
+                    ctx.fillRect(0, row.y, canvas.width, GRID_SIZE);
+
+                    ctx.fillStyle = "#e5c158";
+                    for (let i = 0; i < canvas.width; i += 40) {
+                        ctx.fillRect(i + 10, row.y + GRID_SIZE/2 - 2, 20, 3);
+                    }
+                }
+            });
+
+            entities.forEach(ent => {
+                ctx.save();
+                ctx.translate(ent.x, ent.y);
+
+                if (ent.type === "car") {
+                    ctx.fillStyle = ent.color;
+                    ctx.fillRect(2, 2, ent.width - 4, ent.height - 4);
+                    ctx.fillStyle = "#222";
+                    ctx.fillRect(15, 6, ent.width - 30, ent.height - 12);
+                    ctx.fillStyle = "#a8d8ea";
+                    ctx.fillRect(ent.speed > 0 ? ent.width - 20 : 8, 8, 12, 14);
+                    ctx.fillStyle = "#fff89a";
+                    if (ent.speed > 0) {
+                        ctx.fillRect(ent.width - 6, 4, 4, 6);
+                        ctx.fillRect(ent.width - 6, ent.height - 10, 4, 6);
+                    } else {
+                        ctx.fillRect(2, 4, 4, 6);
+                        ctx.fillRect(2, ent.height - 10, 4, 6);
+                    }
+                    ctx.fillStyle = "#111";
+                    ctx.fillRect(12, -2, 12, 4);
+                    ctx.fillRect(ent.width - 24, -2, 12, 4);
+                    ctx.fillRect(12, ent.height - 2, 12, 4);
+                    ctx.fillRect(ent.width - 24, ent.height - 2, 12, 4);
+
+                } else if (ent.type === "cyber_car") {
+                    ctx.fillStyle = "#000";
+                    ctx.fillRect(2, 2, ent.width - 4, ent.height - 4);
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = ent.color;
+                    ctx.strokeRect(4, 4, ent.width - 8, ent.height - 8);
+                    ctx.fillStyle = ent.color;
+                    ctx.fillRect(ent.speed > 0 ? 6 : ent.width - 12, 10, 6, 10);
+
+                } else if (ent.type === "plane") {
+                    ctx.fillStyle = "#e0e0e0";
+                    ctx.fillRect(15, 8, ent.width - 30, 16);
+                    ctx.fillStyle = "#b0bec5";
+                    ctx.fillRect(35, -4, 12, 40);
+                    ctx.fillStyle = "#78909c";
+                    ctx.fillRect(ent.speed > 0 ? ent.width - 15 : 5, 12, 10, 8);
+                    ctx.fillStyle = "#ff1744";
+                    ctx.fillRect(35, -8, 12, 4);
+                    ctx.fillRect(35, 36, 12, 4);
+
+                } else if (ent.type === "giant_ship") {
+                    ctx.fillStyle = "#8d6e63";
+                    ctx.fillRect(0, 0, ent.width, ent.height);
+                    ctx.fillStyle = "#3e2723";
+                    ctx.fillRect(0, 0, 15, ent.height);
+                    ctx.fillRect(ent.width - 15, 0, 15, ent.height);
+                    ent.cargoCrates.forEach(crate => {
+                        ctx.fillStyle = "#ef4444";
+                        ctx.fillRect(crate.relX, 6, crate.width, 24);
+                        ctx.strokeStyle = "#000";
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(crate.relX, 6, crate.width, 24);
+                        ctx.fillStyle = "#fff";
+                        ctx.font = '6px "Press Start 2P"';
+                        ctx.fillText("X", crate.relX + 8, 22);
+                    });
+
+                } else if (ent.type === "lilypad") {
+                    ctx.fillStyle = ent.sinkTimer > 45 ? "#b5a642" : "#22c55e"; 
+                    ctx.beginPath();
+                    ctx.arc(ent.width / 2, ent.height / 2, 16, 0, Math.PI * 1.85); 
+                    ctx.lineTo(ent.width / 2, ent.height / 2);
+                    ctx.fill();
+
+                } else if (ent.type === "crumbling_bridge") {
+                    ctx.fillStyle = ent.sinkTimer > 45 ? "#ef4444" : "#8b5a2b";
+                    ctx.fillRect(0, 2, ent.width, ent.height - 4);
+                    ctx.fillStyle = "#2d1b00";
+                    ctx.fillRect(10, 10, ent.width - 20, 4);
+                    ctx.fillRect(25, 20, ent.width - 50, 4);
+
+                } else if (ent.type === "log") {
+                    ctx.fillStyle = ent.color;
+                    ctx.fillRect(0, 0, ent.width, ent.height);
+                    ctx.fillStyle = "#5c3a21";
+                    ctx.fillRect(10, 6, ent.width - 20, 4);
+                    ctx.fillRect(18, 18, ent.width - 36, 4);
+                    ctx.fillStyle = "#d7a15c";
+                    ctx.fillRect(0, 0, 4, ent.height);
+                    ctx.fillRect(ent.width - 4, 0, 4, ent.height);
+
+                    if (ent.isCroc) {
+                        const isMouthOpen = Math.floor(ent.crocTimer / 40) % 2 === 1;
+                        ctx.fillStyle = "#1b4d1b";
+                        if (ent.speed > 0) {
+                            ctx.fillRect(ent.width - 30, 6, 25, 24);
+                            ctx.fillStyle = isMouthOpen ? "#ff0000" : "#fff89a"; 
+                            ctx.fillRect(ent.width - 12, 10, 4, 4);
+                        } else {
+                            ctx.fillRect(5, 6, 25, 24);
+                            ctx.fillStyle = isMouthOpen ? "#ff0000" : "#fff89a";
+                            ctx.fillRect(10, 10, 4, 4);
+                        }
+                    }
+
+                } else if (ent.type === "boat") {
+                    ctx.fillStyle = ent.color;
+                    ctx.fillRect(10, 0, ent.width - 20, ent.height);
+                    ctx.fillStyle = "#a0522d";
+                    ctx.beginPath();
+                    if (ent.speed > 0) {
+                        ctx.moveTo(ent.width - 10, 0);
+                        ctx.lineTo(ent.width, ent.height / 2);
+                        ctx.lineTo(ent.width - 10, ent.height);
+                    } else {
+                        ctx.moveTo(10, 0);
+                        ctx.lineTo(0, ent.height / 2);
+                        ctx.lineTo(10, ent.height);
+                    }
+                    ctx.fill();
+                    ctx.fillStyle = "#fff";
+                    ctx.fillRect(ent.width/2 - 6, 4, 12, 22);
+                    ctx.fillStyle = "#3e2723";
+                    ctx.fillRect(ent.width/2 - 2, 2, 4, 26);
+
+                } else if (ent.type === "lava_stone") {
+                    ctx.fillStyle = ent.color;
+                    ctx.fillRect(2, 2, ent.width - 4, ent.height - 4);
+                    ctx.fillStyle = "#ff5500";
+                    ctx.fillRect(15, 8, 4, 14);
+                    ctx.fillRect(40, 16, 20, 4);
+
+                } else if (ent.type === "shark") {
+                    ctx.fillStyle = "#78909c";
+                    ctx.beginPath();
+                    ctx.moveTo(15, ent.height);
+                    ctx.lineTo(25, 4);
+                    ctx.lineTo(35, ent.height);
+                    ctx.fill();
+                    ctx.fillStyle = "rgba(120,144,156,0.3)";
+                    ctx.fillRect(2, ent.height - 6, ent.width - 4, 8);
+                } else if (ent.type === "portal") {
+                    ctx.fillStyle = "#ffd54f";
+                    ctx.fillRect(0, 0, ent.width, ent.height);
+                    ctx.strokeStyle = "#fff";
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(4, 4, ent.width - 8, ent.height - 8);
+                    ctx.fillStyle = "#ff9800";
+                    ctx.fillRect(10, 10, ent.width - 20, ent.height - 20);
+                }
+
+                ctx.restore();
+            });
+
+            // Itens
+            items.forEach(it => {
+                if (!it.active) return;
+                ctx.save();
+                ctx.translate(it.x, it.y);
+
+                if (it.type === "coin") {
+                    ctx.fillStyle = "#facc15";
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = "#eab308";
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (it.type === "shield") {
+                    ctx.fillStyle = "#3b82f6";
+                    ctx.fillRect(-10, -10, 20, 10);
+                    ctx.fillStyle = "#fff";
+                    ctx.fillRect(-10, -5, 4, 4);
+                    ctx.fillRect(4, -5, 4, 4);
+                    ctx.fillStyle = "#e2e8f0";
+                    ctx.fillRect(-4, 0, 8, 10);
+                }
+
+                ctx.restore();
+            });
+
+            flies.forEach(fly => {
+                if (!fly.active) return;
+                fly.pulse += 0.2;
+                const pulseSize = 2 + Math.sin(fly.pulse) * 1.5;
+
+                ctx.save();
+                ctx.translate(fly.x, fly.y);
+
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(-6 - pulseSize/2, -4, 4, 4);
+                ctx.fillRect(2 + pulseSize/2, -4, 4, 4);
+
+                ctx.fillStyle = fly.type === "blue" ? "#38bdf8" : "#facc15";
+                ctx.fillRect(-4, -2, 8, 6);
+
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(-2, -1, 3, 2);
+
+                ctx.restore();
+            });
+
+            // Língua (Z)
+            if (frog.tongueActive) {
+                ctx.strokeStyle = "#ff7597";
+                ctx.lineWidth = 8;
+                ctx.lineCap = "round";
+                ctx.beginPath();
+                ctx.moveTo(frog.x + GRID_SIZE / 2, frog.y + GRID_SIZE / 2 - (frog.isJumping ? frog.jumpHeightOffset : 0));
+
+                let tx = frog.x + GRID_SIZE / 2;
+                let ty = frog.y + GRID_SIZE / 2;
+
+                if (frog.tongueDir === 'UP') ty -= frog.tongueLength;
+                if (frog.tongueDir === 'DOWN') ty += frog.tongueLength;
+                if (frog.tongueDir === 'LEFT') tx -= frog.tongueLength;
+                if (frog.tongueDir === 'RIGHT') tx += frog.tongueLength;
+
+                ctx.lineTo(tx, ty);
+                ctx.stroke();
+
+                ctx.fillStyle = "#ff4071";
+                ctx.beginPath();
+                ctx.arc(tx, ty, 7, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Sombra do pulo
+            if (frog.isJumping && !frog.isFlying) {
+                ctx.fillStyle = "rgba(0,0,0,0.35)";
+                ctx.beginPath();
+                const shadowRad = Math.max(4, 12 - (frog.jumpHeightOffset / 12));
+                ctx.arc(frog.x + GRID_SIZE / 2, frog.y + GRID_SIZE / 2 + 10, shadowRad, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Bolha de Escudo
+            if (frog.hasShield) {
+                ctx.strokeStyle = `rgba(0, 255, 255, ${0.4 + Math.sin(frog.shieldAnim) * 0.3})`;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(frog.x + GRID_SIZE / 2, frog.y + GRID_SIZE / 2 - (frog.isJumping ? frog.jumpHeightOffset : 0), 24, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Sapinho Ativo Principal (Verde)
+            drawSingleFrog(frog.x, frog.y - (frog.isJumping ? frog.jumpHeightOffset : 0), frog.dir, frog.isFlying, !gameActive, currentName);
+        }
+
+        function drawSingleFrog(fx, fy, dir, isFlying, isDead, name) {
+            ctx.save();
+            ctx.translate(fx + GRID_SIZE / 2, fy + GRID_SIZE / 2);
+
+            if (dir === 'DOWN') ctx.rotate(Math.PI);
+            if (dir === 'LEFT') ctx.rotate(-Math.PI / 2);
+            if (dir === 'RIGHT') ctx.rotate(Math.PI / 2);
+
+            const frogW = 32;
+            const frogH = 30;
+
+            if (isDead) {
+                ctx.fillStyle = "#555";
+                ctx.fillRect(-frogW/2, -frogH/2, frogW, frogH);
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(-10, -10, 4, 4);
+                ctx.fillRect(6, -10, 4, 4);
+                ctx.fillStyle = "#ff1744";
+                ctx.fillRect(-4, 0, 8, 4);
+            } else {
+                ctx.fillStyle = "#1e4d0d"; 
+                ctx.fillRect(-16, 4, 8, 8);
+                ctx.fillRect(8, 4, 8, 8);
+
+                ctx.fillStyle = "#2e7d32"; 
+                ctx.fillRect(-frogW/2, -frogH/2, frogW, frogH);
+
+                ctx.fillStyle = "#aee530";
+                ctx.fillRect(-frogW/4, -frogH/4, frogW/2, frogH/2 + 2);
+
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(-12, -frogH/2 - 2, 6, 6);
+                ctx.fillRect(6, -frogH/2 - 2, 6, 6);
+                ctx.fillStyle = "#000";
+                ctx.fillRect(-10, -frogH/2 - 1, 3, 4);
+                ctx.fillRect(8, -frogH/2 - 1, 3, 4);
+
+                if (isFlying) {
+                    ctx.fillStyle = "#f0f9ff";
+                    ctx.beginPath();
+                    ctx.moveTo(-frogW/2, -2);
+                    ctx.lineTo(-frogW/2 - 16, -12);
+                    ctx.lineTo(-frogW/2 - 12, 6);
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.moveTo(frogW/2, -2);
+                    ctx.lineTo(frogW/2 + 16, -12);
+                    ctx.lineTo(frogW/2 + 12, 6);
+                    ctx.fill();
+                }
+            }
+
+            ctx.restore();
+
+            ctx.fillStyle = "#fbbf24";
+            ctx.font = '6px "Press Start 2P"';
+            ctx.textAlign = "center";
+            ctx.fillText(name, fx + GRID_SIZE / 2, fy - 6);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function init() {
+            checkSaveState();
+
+            // Mobile Setup
+            setupMobileButton('touch-up', () => handleInput('UP'));
+            setupMobileButton('touch-down', () => handleInput('DOWN'));
+            setupMobileButton('touch-left', () => handleInput('LEFT'));
+            setupMobileButton('touch-right', () => handleInput('RIGHT'));
+            setupMobileButton('touch-z', () => triggerTongue());
+            setupMobileButton('touch-x', () => triggerJump());
+            
+            gameLoop();
+        }
+
+        init();
+    </script>
+</body>
+</html>
